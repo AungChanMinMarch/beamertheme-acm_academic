@@ -1,0 +1,756 @@
+%% =====================================================================
+%%  beamerthemeacm_academic.sty                         v1.1 (2026/10/28)
+%%  A clean academic Beamer theme with three layouts:
+%%    1. title page     -- two logos, purpose line, title, subtitle,
+%%                         author block (left) and advisor block (right)
+%%    2. section page   -- "Section x of n", section title, description,
+%%                         and every section listed along the bottom
+%%    3. content page   -- sidebar (logo A, short contents, logo B) and a
+%%                         footer "Author · Short title · 3 / 23"
+%%
+%%  USAGE
+%%    \documentclass[aspectratio=169]{beamer}
+%%    \usetheme{acm_academic}            % or \usetheme[nosectionpages]{acm_academic}
+%%
+%%  THEME COMMANDS (all optional, put them in the preamble)
+%%    \purpose{Thesis Proposal · Master of Engineering}  red line above the title
+%%    \advisor{Name}       or  \advisor[Supervisor]{Name}       (label optional)
+%%    \coadvisor{Name}     or  \coadvisor[Co-supervisor]{Name}
+%%    \addtitleinfo{Committee: Dr. X}   extra line in the bottom-right block
+%%    \logoA{file}   \logoB{file}       default files: logo_A, logo_B (next to
+%%                                      the .tex); not found = no logo drawn;
+%%                                      \logoA{} / \logoB{} = no logo
+%%    \logoBcaption{My\\University}     text next to logo B in the sidebar
+%%    \sectiondescription{...}          one line under the title of a section
+%%                                      page -- write it right AFTER \section
+%%    \themecolors{primary=5C2468, accent=A51C30, highlight=F9CC5C}
+%%                  HTML hex codes, any subset of the keys:
+%%                  primary   section page background, block titles
+%%                  accent    purpose line, current section, bullets
+%%                  highlight "Section x of n" and current item on section page
+%%                  (also: text, muted, paper, sidebar, line, soft)
+%%    \themelabels{section=Section, appendix=Appendix, of=of,
+%%                 advisor=Advisor, coadvisor=Co-advisor}   words used by the theme
+%%
+%%  STANDARD BEAMER COMMANDS THE THEME USES
+%%    \title[short title for footer]{Full title}   \subtitle{...}
+%%    \author{...}  \institute{...}  \date{...}  \maketitle
+%%    \section[short name for navigation]{Full section title}
+%%
+%%  Compile twice (pdfLaTeX, XeLaTeX or LuaLaTeX): the section list, the
+%%  "of n" count, page totals and section descriptions come from the
+%%  previous run, as with any Beamer table of contents.
+%% =====================================================================
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{beamerthemeacm_academic}[2026/10/28 v1.1 acm_academic Beamer theme]
+
+\RequirePackage{iftex}
+\RequirePackage{etoolbox}
+\RequirePackage{tikz}
+\RequirePackage{fix-cm}   % scalable math fonts: no size warnings at odd sizes
+
+% ---------------------------------------------------------------- options
+\newif\ifacm@sectionpages \acm@sectionpagestrue
+\DeclareOptionBeamer{sectionpages}{\acm@sectionpagestrue}
+\DeclareOptionBeamer{nosectionpages}{\acm@sectionpagesfalse}
+\ProcessOptionsBeamer
+
+% =====================================================================
+%  FONTS  -- IBM Plex Sans (text), IBM Plex Serif (titles), Plex Mono
+% =====================================================================
+\newif\ifacm@plex
+\ifPDFTeX
+  \IfFileExists{plex-sans.sty}{%
+    \RequirePackage[T1]{fontenc}%
+    \RequirePackage{plex-sans}%
+    \RequirePackage{plex-serif}%
+    \IfFileExists{plex-mono.sty}{\RequirePackage[scale=0.95]{plex-mono}}{}%
+    \acm@plextrue
+  }{\PackageWarningNoLine{beamerthemeacm_academic}%
+      {IBM Plex fonts (package 'plex') not found.\MessageBreak
+       Falling back to the default fonts}}
+\else % XeLaTeX / LuaLaTeX
+  \RequirePackage{fontspec}
+  \IfFontExistsTF{IBMPlexSans-Regular.otf}{%
+    \setsansfont{IBMPlexSans}[
+      Extension      = .otf,
+      UprightFont    = *-Regular,
+      ItalicFont     = *-Italic,
+      BoldFont       = *-Bold,
+      BoldItalicFont = *-BoldItalic,
+      FontFace       = {sb}{n}{Font = *-SemiBold},
+      FontFace       = {sb}{it}{Font = *-SemiBoldItalic}]%
+    \setmainfont{IBMPlexSerif}[
+      Extension      = .otf,
+      UprightFont    = *-Regular,
+      ItalicFont     = *-Italic,
+      BoldFont       = *-Bold,
+      BoldItalicFont = *-BoldItalic,
+      FontFace       = {sb}{n}{Font = *-SemiBold},
+      FontFace       = {sb}{it}{Font = *-SemiBoldItalic}]%
+    \IfFontExistsTF{IBMPlexMono-Regular.otf}{%
+      \setmonofont{IBMPlexMono}[
+        Extension      = .otf,
+        Scale          = 0.95,
+        UprightFont    = *-Regular,
+        ItalicFont     = *-Italic,
+        BoldFont       = *-Bold,
+        BoldItalicFont = *-BoldItalic]}{}%
+    \acm@plextrue
+  }{\PackageWarningNoLine{beamerthemeacm_academic}%
+      {IBM Plex OpenType fonts not found.\MessageBreak
+       Falling back to the default fonts}}
+\fi
+
+% semibold weight (falls back to bold without IBM Plex)
+\ifacm@plex
+  \newcommand\acmsemibold{\fontseries{sb}\selectfont}
+\else
+  \newcommand\acmsemibold{\bfseries}
+\fi
+
+% letter-spaced text (used for the red purpose line and "SECTION 1 OF 6")
+\ifXeTeX
+  \ifacm@plex
+    \newcommand\acmtracked[1]{{\addfontfeatures{LetterSpace=13}#1}}
+  \else
+    \newcommand\acmtracked[1]{#1}
+  \fi
+\else
+  \AtEndPreamble{\@ifpackageloaded{microtype}{}{\RequirePackage{microtype}}}
+  \newcommand\acmtracked[1]{\textls*[130]{#1}}
+\fi
+
+% =====================================================================
+%  COLOURS
+% =====================================================================
+\definecolor{acmPurple}{HTML}{5C2468}      % section page background
+\definecolor{acmRed}{HTML}{A51C30}         % purpose line, current section
+\definecolor{acmGold}{HTML}{F9CC5C}        % accents on the purple page
+\definecolor{acmGoldDark}{HTML}{8A6200}    % gold that reads on light paper
+\definecolor{acmInk}{HTML}{1B1C1E}         % main text
+\definecolor{acmMuted}{HTML}{605C57}       % secondary text
+\definecolor{acmMutedLight}{HTML}{6E6963}  % sidebar / footer text
+\definecolor{acmPaper}{HTML}{FBFBF9}       % page background
+\definecolor{acmSidebar}{HTML}{F2F1ED}     % sidebar / block background
+\definecolor{acmLine}{HTML}{E6E4DE}        % hairlines
+\definecolor{acmLavender}{HTML}{CBA8D3}    % secondary text on purple
+
+% \themecolors{key=HEX, ...}: colours are looked up when used, so this works
+% anywhere in the preamble.  "soft" defaults to primary mixed with white.
+\pgfkeys{/acm/colors/.is family, /acm/colors,
+  primary/.code   = {\definecolor{acmPurple}{HTML}{#1}%
+                     \colorlet{acmLavender}{acmPurple!35!white}},
+  accent/.code    = {\definecolor{acmRed}{HTML}{#1}},
+  highlight/.code = {\definecolor{acmGold}{HTML}{#1}%
+                     \colorlet{acmGoldDark}{acmGold!55!black}},
+  text/.code      = {\definecolor{acmInk}{HTML}{#1}},
+  muted/.code     = {\definecolor{acmMuted}{HTML}{#1}\colorlet{acmMutedLight}{acmMuted}},
+  paper/.code     = {\definecolor{acmPaper}{HTML}{#1}},
+  sidebar/.code   = {\definecolor{acmSidebar}{HTML}{#1}},
+  line/.code      = {\definecolor{acmLine}{HTML}{#1}},
+  soft/.code      = {\definecolor{acmLavender}{HTML}{#1}}}
+\newcommand\themecolors[1]{\pgfkeys{/acm/colors,#1}}
+
+% =====================================================================
+%  GEOMETRY  (tuned for 16:9 = 160mm x 90mm; works for other ratios)
+% =====================================================================
+\newdimen\acm@sidebarwd     \acm@sidebarwd=33.33mm  % sidebar width
+\newdimen\acm@sidepad       \acm@sidepad=4mm        % sidebar inner padding
+\newdimen\acm@margin        \acm@margin=11.4mm      % content left/right margin
+\newdimen\acm@footheight    \acm@footheight=11mm    % space kept free at bottom
+\newdimen\acm@footbase      \acm@footbase=6.1mm     % footer baseline from bottom
+% sidebar
+\newdimen\acm@logoAtop      \acm@logoAtop=5.45mm
+\newdimen\acm@logoAht       \acm@logoAht=7.76mm
+\newdimen\acm@toctop        \acm@toctop=16.85mm     % top of first contents entry
+\newdimen\acm@toctextx      \acm@toctextx=1.94mm    % text indent (bar sits at 0)
+\newdimen\acm@tocbarwd      \acm@tocbarwd=0.24mm
+\newdimen\acm@tocgap        \acm@tocgap=1.45mm       % gap between entries
+\newdimen\acm@logoBbottom   \acm@logoBbottom=5.4mm  % logo B bottom from page bottom
+\newdimen\acm@logoBht       \acm@logoBht=7.15mm
+\newdimen\acm@captiongap    \acm@captiongap=1.58mm
+% title page
+\newdimen\acm@tp@padx       \acm@tp@padx=10.67mm
+\newdimen\acm@tp@pady       \acm@tp@pady=8.6mm
+\newdimen\acm@tp@logoht     \acm@tp@logoht=9.4mm
+\newdimen\acm@tp@logogap    \acm@tp@logogap=3.75mm
+\newdimen\acm@tp@bottombase \acm@tp@bottombase=9.36mm % last baseline from bottom
+\newdimen\acm@tp@rulegap    \acm@tp@rulegap=2.9mm
+% section page
+\newdimen\acm@sp@pad        \acm@sp@pad=10.67mm
+\newdimen\acm@sp@labelbase  \acm@sp@labelbase=12.9mm
+\newdimen\acm@sp@navbase    \acm@sp@navbase=11.25mm   % from page bottom
+\newdimen\acm@sp@navgap     \acm@sp@navgap=6mm       % minimum gap between items
+% frame title
+\newdimen\acm@ft@base       \acm@ft@base=13.2mm      % first baseline from top
+\newdimen\acm@ftstrut
+
+% scratch registers
+\newdimen\acm@dima \newdimen\acm@dimb \newdimen\acm@dimc
+\newbox\acm@boxa \newbox\acm@boxb \newbox\acm@boxc \newbox\acm@boxd \newbox\acm@footbox
+\newcount\acm@navidx \newcount\acm@secidx \newcount\acm@sectot
+
+% bookmarks: let \appendix produce the plain word "Appendix"
+\ifdefined\pdfstringdefDisableCommands
+  \pdfstringdefDisableCommands{\def\translate#1{#1}}%
+\fi
+
+% =====================================================================
+%  USER COMMANDS  (available in every Beamer mode)
+% =====================================================================
+\mode<all>
+
+\def\acm@purpose{}
+\newcommand\purpose[1]{\def\acm@purpose{#1}}
+
+% \themelabels{key=word, ...}: the fixed words the theme prints
+\def\acm@lbl@section{Section}\def\acm@lbl@appendix{Appendix}\def\acm@lbl@of{of}
+\def\acm@lbl@advisor{Advisor}\def\acm@lbl@coadvisor{Co-advisor}
+\pgfkeys{/acm/labels/.is family, /acm/labels,
+  section/.code   = {\def\acm@lbl@section{#1}},
+  appendix/.code  = {\def\acm@lbl@appendix{#1}},
+  of/.code        = {\def\acm@lbl@of{#1}},
+  advisor/.code   = {\def\acm@lbl@advisor{#1}},
+  coadvisor/.code = {\def\acm@lbl@coadvisor{#1}}}
+\newcommand\themelabels[1]{\pgfkeys{/acm/labels,#1}}
+
+% label is resolved at use time, so \themelabels may come after \advisor
+\def\acm@advisor{}\def\acm@advisorlabel{\acm@lbl@advisor}
+\newcommand\advisor[2][\acm@lbl@advisor]{\def\acm@advisorlabel{#1}\def\acm@advisor{#2}}
+\def\acm@coadvisor{}\def\acm@coadvisorlabel{\acm@lbl@coadvisor}
+\newcommand\coadvisor[2][\acm@lbl@coadvisor]{\def\acm@coadvisorlabel{#1}\def\acm@coadvisor{#2}}
+\def\acm@titleinfo{}
+\newcommand\addtitleinfo[1]{\g@addto@macro\acm@titleinfo{\acm@infoline{#1}}}
+
+% default logos are optional (nothing drawn if missing); a logo set with
+% \logoA / \logoB that cannot be found shows a labelled placeholder box
+\def\acm@logoAfile{logo_A}
+\def\acm@logoBfile{logo_B}
+\def\acm@logoBcaption{}
+\def\acm@logoAset{0}\def\acm@logoBset{0}
+\newcommand\logoA[1]{\def\acm@logoAfile{#1}\def\acm@logoAset{1}}
+\newcommand\logoB[1]{\def\acm@logoBfile{#1}\def\acm@logoBset{1}}
+\newcommand\logoBcaption[1]{\def\acm@logoBcaption{#1}}
+
+% \sectiondescription{text}: stored in the .aux file, shown on the section
+% page of the current section from the next compilation on.
+\def\acm@secdesc#1#2{\global\@namedef{acm@desc@#1}{#2}}
+\newcommand\sectiondescription[1]{%
+  \if@filesw
+    \immediate\write\@auxout{\string\acm@secdesc{\the\c@section}{\unexpanded{#1}}}%
+  \fi}
+\AtBeginDocument{%
+  \if@filesw\immediate\write\@auxout{\string\providecommand\string\acm@secdesc[2]{}}\fi}
+
+% default date format: 26 October 2026
+\def\acm@today{\number\day\space\ifcase\month\or January\or February\or March\or
+  April\or May\or June\or July\or August\or September\or October\or November\or
+  December\fi\space\number\year}
+\date{\acm@today}
+
+% =====================================================================
+%  EVERYTHING BELOW ONLY APPLIES TO THE SLIDES
+% =====================================================================
+\mode<presentation>
+
+% ------------------------------------------------------- beamer colours
+\setbeamercolor{normal text}{fg=acmInk, bg=acmPaper}
+\setbeamercolor{background canvas}{bg=acmPaper}
+\setbeamercolor{structure}{fg=acmPurple}
+\setbeamercolor{alerted text}{fg=acmRed}
+\setbeamercolor{example text}{fg=acmGoldDark}
+\setbeamercolor{title}{fg=acmInk}
+\setbeamercolor{subtitle}{fg=acmMuted}
+\setbeamercolor{purpose}{fg=acmRed}
+\setbeamercolor{author}{fg=acmInk}
+\setbeamercolor{institute}{fg=acmMuted}
+\setbeamercolor{advisor}{fg=acmMuted}
+\setbeamercolor{date}{fg=acmMuted}
+\setbeamercolor{title page rule}{fg=acmLine}
+\setbeamercolor{logo divider}{fg=acmLine}
+\setbeamercolor{sidebar panel}{fg=acmMutedLight, bg=acmSidebar}
+\setbeamercolor{sidebar border}{fg=acmLine}
+\setbeamercolor{section in sidebar}{fg=acmRed}
+\setbeamercolor{section in sidebar shaded}{fg=acmMutedLight}
+\setbeamercolor{logo caption}{fg=acmMutedLight}
+\setbeamercolor{footline}{fg=acmMutedLight}
+\setbeamercolor{section page}{fg=acmPaper, bg=acmPurple}
+\setbeamercolor{section page label}{fg=acmGold}
+\setbeamercolor{section page description}{fg=acmLavender}
+\setbeamercolor{section page nav}{fg=acmLavender}
+\setbeamercolor{section page nav current}{fg=acmGold}
+\setbeamercolor{frametitle}{fg=acmInk}
+\setbeamercolor{framesubtitle}{fg=acmMuted}
+\setbeamercolor{itemize item}{fg=acmRed}
+\setbeamercolor{itemize subitem}{fg=acmMuted}
+\setbeamercolor{itemize subsubitem}{fg=acmMuted}
+\setbeamercolor{enumerate item}{fg=acmRed}
+\setbeamercolor{enumerate subitem}{fg=acmMuted}
+\setbeamercolor{enumerate subsubitem}{fg=acmMuted}
+\setbeamercolor{description item}{fg=acmInk}
+\setbeamercolor{block title}{fg=acmPurple, bg=acmSidebar}
+\setbeamercolor{block body}{fg=acmInk, bg=acmSidebar}
+\setbeamercolor{block title alerted}{fg=acmRed, bg=acmSidebar}
+\setbeamercolor{block body alerted}{fg=acmInk, bg=acmSidebar}
+\setbeamercolor{block title example}{fg=acmGoldDark, bg=acmSidebar}
+\setbeamercolor{block body example}{fg=acmInk, bg=acmSidebar}
+\setbeamercolor{section number in toc}{fg=acmRed}
+\setbeamercolor{section in toc}{fg=acmInk}
+\setbeamercolor{subsection in toc}{fg=acmMuted}
+\setbeamercolor{caption}{fg=acmMuted}
+\setbeamercolor{caption name}{fg=acmInk}
+\setbeamercolor{footnote}{fg=acmMuted}
+\setbeamercolor{footnote mark}{fg=acmRed}
+\setbeamercolor{bibliography item}{fg=acmMuted}
+\setbeamercolor{bibliography entry author}{fg=acmInk}
+\setbeamercolor{bibliography entry title}{fg=acmInk}
+\setbeamercolor{bibliography entry location}{fg=acmMuted}
+\setbeamercolor{bibliography entry note}{fg=acmMuted}
+\setbeamercolor{button}{fg=acmPaper, bg=acmPurple}
+
+% --------------------------------------------------------- beamer fonts
+\setbeamerfont{title}{family=\rmfamily, series=\mdseries, size=\fontsize{19.1pt}{21.75pt}}
+\setbeamerfont{subtitle}{family=\sffamily, size=\fontsize{7.6pt}{10.7pt}}
+\setbeamerfont{purpose}{family=\sffamily, series=\acmsemibold, size=\fontsize{6.2pt}{7.5pt}}
+\setbeamerfont{author}{family=\sffamily, series=\acmsemibold, size=\fontsize{7.1pt}{9pt}}
+\setbeamerfont{institute}{family=\sffamily, size=\fontsize{6.2pt}{9.3pt}}
+\setbeamerfont{advisor}{family=\sffamily, size=\fontsize{6.2pt}{8.95pt}}
+\setbeamerfont{date}{family=\sffamily, size=\fontsize{6.2pt}{8.95pt}}
+\setbeamerfont{section in sidebar}{family=\sffamily, size=\fontsize{6.2pt}{7.75pt}}
+\setbeamerfont{logo caption}{family=\sffamily, size=\fontsize{5.72pt}{6.9pt}}
+\setbeamerfont{footline}{family=\sffamily, size=\fontsize{5.7pt}{6.8pt}}
+\setbeamerfont{section page label}{family=\sffamily, series=\acmsemibold, size=\fontsize{6.2pt}{7.5pt}}
+\setbeamerfont{section title}{family=\rmfamily, series=\mdseries, size=\fontsize{23.25pt}{26.5pt}}
+\setbeamerfont{section page description}{family=\sffamily, size=\fontsize{8.05pt}{11pt}}
+\setbeamerfont{section page nav}{family=\sffamily, size=\fontsize{6.2pt}{9pt}}
+\setbeamerfont{frametitle}{family=\rmfamily, series=\mdseries, size=\fontsize{16pt}{19pt}}
+\setbeamerfont{framesubtitle}{family=\sffamily, size=\fontsize{7.8pt}{10pt}}
+\setbeamerfont{block title}{series=\acmsemibold, size=\normalsize}
+\setbeamerfont{description item}{series=\acmsemibold}
+\setbeamerfont{caption}{size=\footnotesize}
+\setbeamerfont{caption name}{series=\acmsemibold}
+\setbeamerfont{footnote}{size=\tiny}
+
+% ------------------------------------------------------ page set-up
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{headline}{}
+\setbeamertemplate{sidebar canvas left}{}
+\setbeamersize{sidebar width left=\acm@sidebarwd,
+               text margin left=\acm@margin, text margin right=\acm@margin}
+
+% Each shipped page is of one kind: n = content, t = title, s = section.
+% \titlepage / \sectionpage switch the kind; it resets after every page.
+\def\acm@kind@n{n}\def\acm@kind@t{t}\def\acm@kind@s{s}
+\gdef\acm@pagekind{n}
+\ifdefined\AddToHook
+  \AddToHook{shipout/after}{\gdef\acm@pagekind{n}}
+\else
+  \RequirePackage{atbegshi}\AtBeginShipout{\gdef\acm@pagekind{n}}
+\fi
+
+% =====================================================================
+%  HELPERS
+% =====================================================================
+% find a graphics file: tries the name as given, then common extensions,
+% also inside \graphicspath folders.  Result in \acm@found (or \relax).
+\def\acm@exts{,.pdf,.png,.jpg,.jpeg,.eps,.PDF,.PNG,.JPG,.JPEG}
+\newcommand\acm@findfile[1]{%
+  \let\acm@found\relax
+  \def\acm@trydir##1{%
+    \@for\acm@ext:=\acm@exts\do{%
+      \ifx\acm@found\relax
+        \IfFileExists{##1#1\acm@ext}{\edef\acm@found{##1#1\acm@ext}}{}%
+      \fi}}%
+  \acm@trydir{}%
+  \ifx\acm@found\relax
+    \ifdefined\Ginput@path
+      \expandafter\@tfor\expandafter\acm@dir\expandafter:\expandafter=\Ginput@path\do{%
+        \ifx\acm@found\relax\expandafter\acm@trydir\expandafter{\acm@dir}\fi}%
+    \fi
+  \fi}
+
+% \acm@logostate{A or B}: \acm@state = 0 no logo, 1 file found (\acm@found),
+% 2 placeholder (file set with \logoA/\logoB but not found)
+\newcommand\acm@logostate[1]{%
+  \edef\acm@logoname{\csname acm@logo#1file\endcsname}%
+  \ifx\acm@logoname\@empty
+    \def\acm@state{0}%
+  \else
+    \acm@findfile{\acm@logoname}%
+    \ifx\acm@found\relax
+      \ifnum\csname acm@logo#1set\endcsname=1
+        \def\acm@state{2}%
+        \PackageWarning{beamerthemeacm_academic}{Logo file `\acm@logoname' not found}%
+      \else
+        \def\acm@state{0}%
+      \fi
+    \else
+      \def\acm@state{1}%
+    \fi
+  \fi}
+
+% \acm@logo{A or B}{height}{max width}{placeholder width}
+\newcommand\acm@logo[4]{%
+  \acm@logostate{#1}%
+  \ifcase\acm@state\relax
+  \or
+    \includegraphics[height=#2,width=#3,keepaspectratio]{\acm@found}%
+  \or
+    {\setlength\fboxsep{0pt}\setlength\fboxrule{0.4pt}%
+     \fcolorbox{acmLine}{acmSidebar}{\hbox to #4{\hss\vbox to #2{\vss
+       \hbox{\fontsize{4pt}{5pt}\selectfont\color{acmMutedLight}\detokenize\expandafter{\acm@logoname}}\vss}\hss}}}%
+  \fi}
+
+% ignore the commands Beamer stores for subsections and mini frames
+\newcommand\acm@silencenav{%
+  \def\slideentry##1##2##3##4##5##6{}%
+  \def\beamer@subsectionentry##1##2##3##4##5{}%
+  \def\beamer@subsubsectionentry##1##2##3##4##5##6{}}
+
+% section number shown in navigation: 1, 2, ... (A1, A2, ... in the appendix)
+\newcommand\acm@numlabel[1]{\ifbeamer@inappendix A\fi#1}
+
+% position of the current section within the current part, and the total
+\newcommand\acm@countsections{%
+  \global\acm@secidx=0 \global\acm@sectot=0
+  \begingroup
+    \acm@silencenav
+    \def\sectionentry##1##2##3##4##5{%
+      \ifnum##5=\c@part
+        \global\advance\acm@sectot by 1
+        \ifnum##1=\c@section \global\acm@secidx=\acm@sectot\fi
+      \fi}%
+    \dohead
+  \endgroup
+  \ifnum\acm@secidx=0 \global\acm@secidx=\c@section\fi % first compilation
+}
+
+% =====================================================================
+%  CONTENT PAGE: sidebar + footer
+% =====================================================================
+% one entry of the sidebar contents: #1 number, #2 title, #3 page, #4 current?
+\newcommand\acm@sidebaritem[4]{%
+  \setbox\acm@boxb\vtop{%
+    \hsize=\dimexpr\acm@sidebarwd-\acm@sidepad-\acm@toctextx-2.4mm\relax
+    \raggedright\hyphenpenalty=10000\exhyphenpenalty=10000
+    \ifnum#4=1 \usebeamercolor[fg]{section in sidebar}\acmsemibold
+    \else      \usebeamercolor[fg]{section in sidebar shaded}\fi
+    \setbox\acm@boxc\hbox{#1\ }%
+    \hangindent=\wd\acm@boxc \hangafter=1
+    \leavevmode\vrule width\z@ height\dimexpr.698em+.6mm\relax depth\z@
+    \unhcopy\acm@boxc#2\vrule width\z@ height\z@ depth.75mm\par}%
+  \hbox{%
+    \ifnum#4=1
+      {\usebeamercolor[fg]{section in sidebar}%
+       \vrule width\acm@tocbarwd height\ht\acm@boxb depth\dp\acm@boxb}%
+      \hskip\dimexpr\acm@toctextx-\acm@tocbarwd\relax
+    \else
+      \hskip\acm@toctextx
+    \fi
+    \hyperlink{Navigation#3}{\box\acm@boxb}}}
+
+\newcommand\acm@buildsidebartoc{%
+  \setbox\acm@boxa\vbox{%
+    \usebeamerfont{section in sidebar}%
+    \acm@navidx=0
+    \acm@silencenav
+    \def\sectionentry##1##2##3##4##5{%
+      \ifnum##5=\c@part
+        \advance\acm@navidx by 1
+        \ifnum\acm@navidx>1 \nointerlineskip\vskip\acm@tocgap\fi
+        \ifnum\c@section=##1
+          \acm@sidebaritem{\acm@numlabel{\the\acm@navidx}}{##2}{##3}{1}%
+        \else
+          \acm@sidebaritem{\acm@numlabel{\the\acm@navidx}}{##2}{##3}{0}%
+        \fi
+      \fi}%
+    \dohead}%
+  % shrink the list if it would run into logo B
+  \acm@dima=\dimexpr\paperheight-\acm@logoBbottom-\acm@logoBht-4mm-\acm@toctop\relax
+  \ifdim\dimexpr\ht\acm@boxa+\dp\acm@boxa\relax>\acm@dima
+    \setbox\acm@boxa\hbox{\resizebox*{!}{\acm@dima}{\box\acm@boxa}}%
+  \fi}
+
+\defbeamertemplate*{sidebar left}{acm}{%
+  \ifx\acm@pagekind\acm@kind@n
+    \acm@buildsidebartoc
+    \nointerlineskip
+    \hbox{\begin{tikzpicture}[overlay]
+      \usebeamercolor{sidebar panel}%
+      \fill[bg] (-1pt,1pt) rectangle (\acm@sidebarwd,-\paperheight-1pt);
+      {\usebeamercolor{sidebar border}%
+       \fill[fg] (\acm@sidebarwd-0.4pt,1pt) rectangle (\acm@sidebarwd,-\paperheight-1pt);}
+      \node[anchor=north west,inner sep=0pt,outer sep=0pt] at (\acm@sidepad,-\acm@logoAtop)
+        {\acm@logo{A}{\acm@logoAht}{\dimexpr\acm@sidebarwd-2\acm@sidepad\relax}{18mm}};
+      \node[anchor=north west,inner sep=0pt,outer sep=0pt] at (\acm@sidepad,-\acm@toctop)
+        {\box\acm@boxa};
+      \node[anchor=south west,inner sep=0pt,outer sep=0pt] (acm-logoB)
+        at (\acm@sidepad,-\paperheight+\acm@logoBbottom)
+        {\acm@logo{B}{\acm@logoBht}{\dimexpr\acm@sidebarwd-2\acm@sidepad\relax}{\acm@logoBht}};
+      \ifx\acm@logoBcaption\@empty\else
+        \node[anchor=west,inner sep=0pt,outer sep=0pt,align=left,
+              font={\usebeamerfont{logo caption}\usebeamercolor[fg]{logo caption}}]
+          at ([xshift=\acm@captiongap,yshift=-0.3mm]acm-logoB.east) {\acm@logoBcaption};
+      \fi
+    \end{tikzpicture}}%
+  \fi}
+
+\defbeamertemplate*{footline}{acm}{%
+  \ifx\acm@pagekind\acm@kind@n
+    \setbox\acm@footbox\hbox to \paperwidth{%
+      \hskip\dimexpr\acm@sidebarwd+\acm@margin\relax
+      \usebeamerfont{footline}\usebeamercolor[fg]{footline}%
+      \ifx\beamer@shortauthor\@empty\else
+        \insertshortauthor\ \textperiodcentered\ \fi
+      \ifx\beamer@shorttitle\@empty\else
+        \insertshorttitle\ \textperiodcentered\ \fi
+      \acm@pagenumber
+      \hfil}%
+  \else
+    \setbox\acm@footbox\hbox{}%
+  \fi
+  % footer baseline sits \acm@footbase above the bottom of the page
+  \vbox to \acm@footheight{\vfil\copy\acm@footbox\vskip\dimexpr\acm@footbase-\dp\acm@footbox\relax}}
+
+% "3 / 23"; appendix frames are counted separately ("2 / 4")
+\newcommand\acm@pagenumber{%
+  \ifdefined\insertmainframenumber
+    \ifbeamer@inappendix
+      \insertframenumberinappendix\ /\ \insertappendixframenumber
+    \else
+      \insertframenumber\ /\ \insertmainframenumber
+    \fi
+  \else
+    \insertframenumber\ /\ \inserttotalframenumber
+  \fi}
+
+% ---------------------------------------------------------- frame title
+\defbeamertemplate*{frametitle}{acm}{%
+  {\usebeamerfont{frametitle}\global\acm@ftstrut=.875em}% room above 1st baseline
+  \nointerlineskip
+  \vskip\dimexpr\acm@ft@base-\acm@ftstrut\relax
+  \hbox{\vtop{%
+    \hsize=\textwidth \raggedright
+    \usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}%
+    \leavevmode\vrule width\z@ height\acm@ftstrut depth\z@\insertframetitle\par
+    \ifx\insertframesubtitle\@empty\else
+      \lineskiplimit=-\maxdimen
+      \usebeamerfont{framesubtitle}\usebeamercolor[fg]{framesubtitle}%
+      \vskip\dimexpr4.4mm-\baselineskip\relax
+      \insertframesubtitle\par
+    \fi}}%
+  \vskip2.6mm}
+\setbeamertemplate{frametitle continuation}[from second][(cont.)]
+
+% =====================================================================
+%  TITLE PAGE
+% =====================================================================
+\newcommand\acm@infoline[1]{#1\par}
+
+\newcommand\acm@drawtitlepage{%
+  % widths
+  \acm@dima=\dimexpr\paperwidth-2\acm@tp@padx\relax           % content width
+  % ---------------- bottom left: author + institute
+  \setbox\acm@boxa\vbox{%
+    \hsize=.5\acm@dima \raggedright \lineskiplimit=-\maxdimen
+    \ifx\beamer@shortauthor\@empty\else
+      {\usebeamerfont{author}\usebeamercolor[fg]{author}%
+       \leavevmode\vrule width\z@ height.76em depth\z@\insertauthor\par}%
+    \fi
+    \ifx\insertinstitute\@empty\else
+      {\usebeamerfont{institute}\usebeamercolor[fg]{institute}%
+       \vskip\dimexpr4.2mm-\baselineskip\relax
+       \insertinstitute\par}%
+    \fi}%
+  % ---------------- bottom right: advisors, extra lines, date
+  \setbox\acm@boxb\vbox{%
+    \hsize=.5\acm@dima \raggedleft \lineskiplimit=-\maxdimen
+    \usebeamerfont{advisor}\usebeamercolor[fg]{advisor}%
+    \ifx\acm@advisor\@empty\else
+      \leavevmode\vrule width\z@ height.76em depth\z@
+      \acm@advisorlabel: \acm@advisor\par\fi
+    \ifx\acm@coadvisor\@empty\else \acm@coadvisorlabel: \acm@coadvisor\par\fi
+    \acm@titleinfo
+    \setbox\acm@boxc\hbox{\insertdate}%
+    \ifdim\wd\acm@boxc>\z@
+      {\usebeamerfont{date}\usebeamercolor[fg]{date}%
+       \ifvmode\ifdim\prevdepth>-1000pt \vskip.85mm\fi\fi
+       \insertdate\par}%
+    \fi}%
+  % ---------------- middle: purpose, title, subtitle
+  \setbox\acm@boxc\vbox{%
+    \hsize=\dimexpr\acm@dima-13.3mm\relax \raggedright \lineskiplimit=-\maxdimen
+    \ifx\acm@purpose\@empty\else
+      {\usebeamerfont{purpose}\usebeamercolor[fg]{purpose}%
+       \acmtracked{\MakeUppercase{\acm@purpose}}\par}%
+      \usebeamerfont{title}\vskip\dimexpr9.32mm-\baselineskip\relax
+    \fi
+    {\usebeamerfont{title}\usebeamercolor[fg]{title}\inserttitle\par}%
+    \ifx\insertsubtitle\@empty\else
+      {\usebeamerfont{subtitle}\usebeamercolor[fg]{subtitle}%
+       \hsize=.625\paperwidth
+       \vskip\dimexpr6.8mm-\baselineskip\relax
+       \insertsubtitle\par}%
+    \fi}%
+  % ---------------- vertical positions (measured from the top)
+  \acm@dimb=\dimexpr\paperheight-\acm@tp@bottombase\relax       % bottom baselines
+  \ifdim\ht\acm@boxa>\ht\acm@boxb \acm@dimc=\ht\acm@boxa \else \acm@dimc=\ht\acm@boxb \fi
+  \acm@dimc=\dimexpr\acm@dimb-\acm@dimc-\acm@tp@rulegap\relax    % rule
+  % fit the middle block between the logos and the rule
+  \acm@dima=\dimexpr\acm@dimc-\acm@tp@pady-\acm@tp@logoht-8mm\relax
+  \ifdim\dimexpr\ht\acm@boxc+\dp\acm@boxc\relax>\acm@dima
+    \setbox\acm@boxc\hbox{\resizebox*{!}{\acm@dima}{\box\acm@boxc}}%
+  \fi
+  \begin{tikzpicture}
+    \useasboundingbox (0pt,0pt) rectangle (\paperwidth,-\paperheight);
+    \usebeamercolor{background canvas}%
+    \fill[bg] (-1pt,1pt) rectangle (\paperwidth+1pt,-\paperheight-1pt);% 1pt bleed
+    % logo B and the divider only move right of logo A when logo A exists
+    \acm@logostate{A}\let\acm@stateA\acm@state
+    \acm@logostate{B}\let\acm@stateB\acm@state
+    \node[anchor=north west,inner sep=0pt,outer sep=0pt] (acm-tA) at (\acm@tp@padx,-\acm@tp@pady)
+      {\acm@logo{A}{\acm@tp@logoht}{60mm}{22mm}};
+    \ifnum\acm@stateA=0
+      \node[anchor=north west,inner sep=0pt,outer sep=0pt] (acm-tB) at (\acm@tp@padx,-\acm@tp@pady)
+        {\acm@logo{B}{\acm@tp@logoht}{60mm}{\acm@tp@logoht}};
+    \else
+      \node[anchor=west,inner sep=0pt,outer sep=0pt] (acm-tB)
+        at ([xshift=2*\acm@tp@logogap+0.4pt]acm-tA.east)
+        {\acm@logo{B}{\acm@tp@logoht}{60mm}{\acm@tp@logoht}};
+      \ifnum\acm@stateB>0
+        {\usebeamercolor{logo divider}%
+         \fill[fg] ([xshift=\acm@tp@logogap,yshift=-0.4*\acm@tp@logoht]acm-tA.east)
+            rectangle ++(0.4pt,0.8*\acm@tp@logoht);}
+      \fi
+    \fi
+    \node[anchor=west,inner sep=0pt,outer sep=0pt]
+      at (\acm@tp@padx,{-(\acm@tp@pady+\acm@tp@logoht+\acm@dimc)/2-0.3mm})
+      {\box\acm@boxc};
+    \ifdim\dimexpr\ht\acm@boxa+\ht\acm@boxb\relax>\z@
+      {\usebeamercolor{title page rule}%
+       \fill[fg] (\acm@tp@padx,-\acm@dimc) rectangle (\paperwidth-\acm@tp@padx,-\acm@dimc-0.4pt);}
+    \fi
+    \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (\acm@tp@padx,-\acm@dimb) {\box\acm@boxa};
+    \node[anchor=base east,inner sep=0pt,outer sep=0pt] at (\paperwidth-\acm@tp@padx,-\acm@dimb) {\box\acm@boxb};
+  \end{tikzpicture}}
+
+\defbeamertemplate*{title page}{acm}{\gdef\acm@pagekind{t}\vfill}
+
+% \maketitle outside a frame makes its own (plain, unnumbered) frame
+\def\maketitle{\ifbeamer@inframe\titlepage\else
+  \frame[plain,noframenumbering]{\titlepage}\fi}
+
+% =====================================================================
+%  SECTION PAGE
+% =====================================================================
+\newcommand\acm@sectionlabel{%
+  \ifbeamer@inappendix\acm@lbl@appendix\else\acm@lbl@section\fi
+  \ \the\acm@secidx\ifnum\acm@sectot>0 \ \acm@lbl@of\ \the\acm@sectot\fi}
+
+% the section names of the current part, separated by #1 (some glue)
+\newcommand\acm@navitems[1]{%
+  \acm@navidx=0
+  \acm@silencenav
+  \def\sectionentry##1##2##3##4##5{%
+    \ifnum##5=\c@part
+      \advance\acm@navidx by 1
+      \ifnum\acm@navidx>1 #1\fi
+      \hyperlink{Navigation##3}{\hbox{%
+        \ifnum\c@section=##1
+          \usebeamercolor[fg]{section page nav current}\acmsemibold
+        \else
+          \usebeamercolor[fg]{section page nav}%
+        \fi
+        \acm@numlabel{\the\acm@navidx}\ ##2}}%
+    \fi}%
+  \dohead}
+
+% one row spread edge to edge; if the names do not fit they wrap onto more
+% rows (all rows spread, except a ragged last row)
+\newcommand\acm@buildsectionnav{%
+  \setbox\acm@boxa\vbox{%
+    \hsize=\dimexpr\paperwidth-2\acm@sp@pad\relax
+    \usebeamerfont{section page nav}%
+    \setbox\acm@boxd\hbox{\acm@navitems{\hskip\acm@sp@navgap\relax}}%
+    \parindent=\z@ \leftskip=\z@ \rightskip=\z@
+    \ifdim\wd\acm@boxd>\hsize \parfillskip=\z@ plus 1fill\relax \else \parfillskip=\z@ \fi
+    \tolerance=10000 \hbadness=10000 \lineskiplimit=-\maxdimen
+    \leavevmode\acm@navitems{\hskip\acm@sp@navgap plus 1fil\relax}\par}}
+
+\newcommand\acm@drawsectionpage{%
+  \acm@countsections
+  \acm@buildsectionnav
+  \setbox\acm@boxb\vbox{%
+    \hsize=\dimexpr\paperwidth-2\acm@sp@pad-13.3mm\relax \raggedright
+    \lineskiplimit=-\maxdimen
+    {\usebeamerfont{section title}\usebeamercolor[fg]{section page}\secname\par}%
+    \ifcsname acm@desc@\the\c@section\endcsname
+      {\usebeamerfont{section page description}\usebeamercolor[fg]{section page description}%
+       \hsize=.7\paperwidth
+       \vskip\dimexpr6.6mm-\baselineskip\relax
+       \csname acm@desc@\the\c@section\endcsname\par}%
+    \fi}%
+  \begin{tikzpicture}
+    \useasboundingbox (0pt,0pt) rectangle (\paperwidth,-\paperheight);
+    \usebeamercolor{section page}%
+    \fill[bg] (-1pt,1pt) rectangle (\paperwidth+1pt,-\paperheight-1pt);% 1pt bleed
+    \node[anchor=base west,inner sep=0pt,outer sep=0pt] at (\acm@sp@pad,-\acm@sp@labelbase)
+      {\usebeamerfont{section page label}\usebeamercolor[fg]{section page label}%
+       \acmtracked{\MakeUppercase{\acm@sectionlabel}}};
+    \node[anchor=west,inner sep=0pt,outer sep=0pt] at (\acm@sp@pad,-0.5075*\paperheight)
+      {\box\acm@boxb};
+    \node[anchor=base west,inner sep=0pt,outer sep=0pt]
+      at (\acm@sp@pad,-\paperheight+\acm@sp@navbase) {\box\acm@boxa};
+  \end{tikzpicture}}
+
+\defbeamertemplate*{section page}{acm}{\gdef\acm@pagekind{s}\vfill}
+
+\ifacm@sectionpages
+  \AtBeginSection[]{\begin{frame}[plain,noframenumbering]\sectionpage\end{frame}}
+\fi
+
+% =====================================================================
+%  BACKGROUND: draws the whole title page / section page
+% =====================================================================
+\defbeamertemplate*{background canvas}{acm}{%
+  \ifx\acm@pagekind\acm@kind@t
+    \acm@drawtitlepage
+  \else\ifx\acm@pagekind\acm@kind@s
+    \acm@drawsectionpage
+  \else
+    \usebeamercolor{background canvas}%
+    \ifbeamercolorempty[bg]{background canvas}{}%
+      {\color{bg}\vrule width\paperwidth height\paperheight}%
+  \fi\fi}
+
+% =====================================================================
+%  CONTENT ELEMENTS
+% =====================================================================
+\setbeamertemplate{itemize item}{%
+  \usebeamercolor[fg]{itemize item}\rule[.068em]{.38em}{.38em}}
+\setbeamertemplate{itemize subitem}{%
+  \usebeamercolor[fg]{itemize subitem}\textendash}
+\setbeamertemplate{itemize subsubitem}{%
+  \usebeamercolor[fg]{itemize subsubitem}\rule[.1em]{.3em}{.3em}}
+\setbeamertemplate{enumerate item}{%
+  \usebeamercolor[fg]{enumerate item}\acmsemibold\insertenumlabel.}
+\setbeamertemplate{enumerate subitem}{%
+  \usebeamercolor[fg]{enumerate subitem}\insertenumlabel.\insertsubenumlabel}
+\setbeamertemplate{enumerate subsubitem}{%
+  \usebeamercolor[fg]{enumerate subsubitem}\insertenumlabel.\insertsubenumlabel.\insertsubsubenumlabel}
+
+\setbeamertemplate{blocks}[default]
+
+\setbeamertemplate{section in toc}{%
+  \leavevmode\hbox to 1.6em{{\usebeamercolor[fg]{section number in toc}\acmsemibold
+    \inserttocsectionnumber}\hfil}%
+  {\usebeamercolor[fg]{section in toc}\inserttocsection}\par}
+\setbeamertemplate{subsection in toc}{%
+  \leavevmode\hskip1.6em{\usebeamercolor[fg]{subsection in toc}\small\inserttocsubsection}\par}
+
+\setbeamertemplate{caption}[numbered]
+\setbeamertemplate{bibliography item}[text]
+
+\mode<all>
+\endinput
