@@ -68,7 +68,11 @@
     \acm@plextrue
   }{\PackageWarningNoLine{beamerthemeacm_academic}%
       {IBM Plex fonts (package 'plex') not found.\MessageBreak
-       Falling back to the default fonts}}
+       Falling back to Latin Modern}%
+    % Latin Modern is scalable in every encoding. Without it, a deck that loads
+    % [T1]{fontenc} gets bitmap EC fonts (when cm-super is missing) and
+    % microtype's font expansion aborts the run.
+    \RequirePackage{lmodern}}
 \else % XeLaTeX / LuaLaTeX
   \RequirePackage{fontspec}
   \IfFontExistsTF{IBMPlexSans-Regular.otf}{%
@@ -751,6 +755,9 @@
 
 \setbeamertemplate{caption}[numbered]
 \setbeamertemplate{bibliography item}[text]
+% [text] prints \insertbiblabel, which biblatex's author-year styles never
+% define (no numeric labels) -> "Undefined control sequence" at \printbibliography.
+\AtBeginDocument{\providecommand*\insertbiblabel{}}
 
 \mode<all>
 \endinput
