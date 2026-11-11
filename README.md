@@ -77,9 +77,35 @@ the previous run, like any Beamer table of contents.
 | `\logoA{file}` / `\logoB{file}` | logo files: a library name from `logos/` or a file next to the `.tex`. Default `logo_A` / `logo_B`, drawn only if such a file exists. `\logoA{}` = no logo. A file set here but not found shows a labelled box |
 | `\logoBcaption{…}` | text beside logo B in the sidebar (default: none) |
 | `\themecolors{primary=…, accent=…, highlight=…}` | HTML hex colours, any subset. *primary*: section page and block titles; *accent*: purpose line, current section, bullets; *highlight*: "Section x of n" on the section page. Also `text`, `muted`, `paper`, `sidebar`, `line`, `soft` |
-| `\themelabels{section=…, appendix=…, of=…, advisor=…, coadvisor=…}` | the fixed words the theme prints, e.g. another language |
+| `\themelabels{section=…, appendix=…, of=…, advisor=…, coadvisor=…, paraphrase=…}` | the fixed words the theme prints, e.g. another language |
 | `\sectiondescription{…}` | line under the title on the current section page |
 | `\usetheme[nosectionpages]{acm_academic}` | no automatic section pages |
+
+## Quotes and paraphrases
+
+Two full-width boxes for citing sources inside a frame. The source in `[…]`
+is optional and is printed as written, so a citation command works too.
+
+```latex
+\begin{directquote}[Fredricks et al. (2004, p.~60)]
+  Engagement is presumed to be malleable \ldots
+\end{directquote}
+
+\begin{paraphrase}[{\textcite{fredricks04}}]   % braces if the source contains ]
+  Engagement is not a fixed trait: it changes with the classroom context.
+\end{paraphrase}
+```
+
+| Box | Look |
+|---|---|
+| `directquote` | accent bar and large quotation mark, serif italic text, `— source` right-aligned below |
+| `paraphrase` | primary-colour bar on a light primary tint, label `PARAPHRASE · source` on top, normal sans text |
+
+Both follow `\themecolors`. The label word is set with
+`\themelabels{paraphrase=…}`. Finer control: beamer colours `direct quote`,
+`direct quote bar`, `direct quote mark`, `direct quote source`, `paraphrase`,
+`paraphrase bar`, `paraphrase label`, `paraphrase source` (and fonts of the
+same names), e.g. `\setbeamerfont{direct quote}{shape=\upshape}`.
 
 Footer: `Author · Short title · 3 / 23`. Title and section pages are not
 counted; frames after `\appendix` are counted separately.

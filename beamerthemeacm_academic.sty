@@ -30,7 +30,14 @@
 %%                  highlight "Section x of n" and current item on section page
 %%                  (also: text, muted, paper, sidebar, line, soft)
 %%    \themelabels{section=Section, appendix=Appendix, of=of,
-%%                 advisor=Advisor, coadvisor=Co-advisor}   words used by the theme
+%%                 advisor=Advisor, coadvisor=Co-advisor,
+%%                 paraphrase=Paraphrase}               words used by the theme
+%%
+%%  BOXES FOR SOURCES (inside frames)
+%%    \begin{directquote}[Smith (2020, p.~4)] exact words \end{directquote}
+%%    \begin{paraphrase}[Smith (2020)]        own words   \end{paraphrase}
+%%                  the source is optional; wrap it in braces if it
+%%                  contains ] e.g.  [{\cite[p.~4]{smith20}}]
 %%
 %%  STANDARD BEAMER COMMANDS THE THEME USES
 %%    \title[short title for footer]{Full title}   \subtitle{...}
@@ -211,12 +218,14 @@
 % \themelabels{key=word, ...}: the fixed words the theme prints
 \def\acm@lbl@section{Section}\def\acm@lbl@appendix{Appendix}\def\acm@lbl@of{of}
 \def\acm@lbl@advisor{Advisor}\def\acm@lbl@coadvisor{Co-advisor}
+\def\acm@lbl@paraphrase{Paraphrase}
 \pgfkeys{/acm/labels/.is family, /acm/labels,
   section/.code   = {\def\acm@lbl@section{#1}},
   appendix/.code  = {\def\acm@lbl@appendix{#1}},
   of/.code        = {\def\acm@lbl@of{#1}},
   advisor/.code   = {\def\acm@lbl@advisor{#1}},
-  coadvisor/.code = {\def\acm@lbl@coadvisor{#1}}}
+  coadvisor/.code = {\def\acm@lbl@coadvisor{#1}},
+  paraphrase/.code= {\def\acm@lbl@paraphrase{#1}}}
 \newcommand\themelabels[1]{\pgfkeys{/acm/labels,#1}}
 
 % label is resolved at use time, so \themelabels may come after \advisor
@@ -312,6 +321,14 @@
 \setbeamercolor{bibliography entry location}{fg=acmMuted}
 \setbeamercolor{bibliography entry note}{fg=acmMuted}
 \setbeamercolor{button}{fg=acmPaper, bg=acmPurple}
+\setbeamercolor{direct quote}{fg=acmMuted, bg=acmSidebar}
+\setbeamercolor{direct quote bar}{fg=acmRed}
+\setbeamercolor{direct quote mark}{fg=acmRed}
+\setbeamercolor{direct quote source}{fg=acmMutedLight}
+\setbeamercolor{paraphrase}{fg=acmMuted, bg=acmPurple!5!acmPaper}
+\setbeamercolor{paraphrase bar}{fg=acmPurple}
+\setbeamercolor{paraphrase label}{fg=acmPurple}
+\setbeamercolor{paraphrase source}{fg=acmMutedLight}
 
 % --------------------------------------------------------- beamer fonts
 \setbeamerfont{title}{family=\rmfamily, series=\mdseries, size=\fontsize{19.1pt}{21.75pt}}
@@ -335,6 +352,12 @@
 \setbeamerfont{caption}{size=\footnotesize}
 \setbeamerfont{caption name}{series=\acmsemibold}
 \setbeamerfont{footnote}{size=\tiny}
+\setbeamerfont{direct quote}{family=\rmfamily, shape=\itshape, size=\small}
+\setbeamerfont{direct quote mark}{family=\rmfamily, shape=\upshape, size=\fontsize{30pt}{30pt}}
+\setbeamerfont{direct quote source}{family=\sffamily, shape=\upshape, size=\footnotesize}
+\setbeamerfont{paraphrase}{family=\sffamily, size=\small}
+\setbeamerfont{paraphrase label}{family=\sffamily, series=\acmsemibold, size=\fontsize{5.6pt}{7pt}}
+\setbeamerfont{paraphrase source}{family=\sffamily, size=\fontsize{6.2pt}{7pt}}
 
 % ------------------------------------------------------ page set-up
 \setbeamertemplate{navigation symbols}{}
@@ -745,6 +768,73 @@
   \usebeamercolor[fg]{enumerate subsubitem}\insertenumlabel.\insertsubenumlabel.\insertsubsubenumlabel}
 
 \setbeamertemplate{blocks}[default]
+
+% ------------------------------------------------ direct quote / paraphrase
+% Both are full-width boxes with a coloured bar on the left.
+%   direct quote : big accent-coloured quotation mark, serif italic text,
+%                  source right-aligned underneath ("-- Smith (2020, p. 4)")
+%   paraphrase   : small letter-spaced label "PARAPHRASE · source" on top,
+%                  upright sans text, tinted with the primary colour
+\newbox\acm@srcbox
+\newdimen\acm@bx@pad    \acm@bx@pad=2.6mm     % inner padding
+\newdimen\acm@bx@bar    \acm@bx@bar=0.7mm     % width of the left bar
+\newdimen\acm@bx@qind   \acm@bx@qind=6.2mm    % room for the quotation mark
+\def\acm@boxsource{}
+
+% #1 beamer colour prefix, #2 text indent, #3 extra TikZ drawn on top
+\newcommand\acm@drawsourcebox[3]{%
+  \par\addvspace{1.6mm}%
+  \acm@dima=\dimexpr\ht\acm@srcbox+\dp\acm@srcbox+2\acm@bx@pad\relax
+  \noindent\begin{tikzpicture}[baseline=0pt]
+    \useasboundingbox (0,0) rectangle (\linewidth,-\acm@dima);
+    \usebeamercolor{#1}%
+    \fill[bg] (0,0) rectangle (\linewidth,-\acm@dima);
+    {\usebeamercolor{#1 bar}\fill[fg] (0,0) rectangle (\acm@bx@bar,-\acm@dima);}
+    \node[anchor=north west,inner sep=0pt,outer sep=0pt]
+      at (\acm@bx@bar+\acm@bx@pad+#2,-\acm@bx@pad) {\box\acm@srcbox};
+    #3
+  \end{tikzpicture}\par
+  \addvspace{2.4mm}}
+
+\newenvironment{directquote}[1][]{%
+  \def\acm@boxsource{#1}%
+  \setbox\acm@srcbox\vbox\bgroup
+    \hsize=\dimexpr\linewidth-\acm@bx@bar-2\acm@bx@pad-\acm@bx@qind\relax
+    \linewidth=\hsize \parindent=\z@ \raggedright
+    \usebeamerfont{direct quote}\usebeamercolor[fg]{direct quote}%
+    \ignorespaces}{%
+    \unskip\par
+    \ifx\acm@boxsource\@empty\else
+      \vskip1.2mm
+      {\raggedleft\usebeamerfont{direct quote source}\usebeamercolor[fg]{direct quote source}%
+       \textemdash\,\acm@boxsource\par}%
+    \fi
+  \egroup
+  \acm@drawsourcebox{direct quote}{\acm@bx@qind}{%
+    \node[anchor=north west,inner sep=0pt,outer sep=0pt]
+      at (\acm@bx@bar+\acm@bx@pad-0.2mm,-\acm@bx@pad+0.6mm)
+      {\usebeamerfont{direct quote mark}\usebeamercolor[fg]{direct quote mark}%
+       \textquotedblleft};}}
+
+\newenvironment{paraphrase}[1][]{%
+  \def\acm@boxsource{#1}%
+  \setbox\acm@srcbox\vbox\bgroup
+    \hsize=\dimexpr\linewidth-\acm@bx@bar-2\acm@bx@pad\relax
+    \linewidth=\hsize \parindent=\z@ \raggedright
+    {\lineskiplimit=-\maxdimen
+     \leavevmode\vrule width\z@ height1.4ex depth\z@
+     {\usebeamerfont{paraphrase label}\usebeamercolor[fg]{paraphrase label}%
+      \acmtracked{\MakeUppercase{\acm@lbl@paraphrase}}}%
+     \ifx\acm@boxsource\@empty\else
+       {\usebeamerfont{paraphrase source}\usebeamercolor[fg]{paraphrase source}%
+        \ \textperiodcentered\ \acm@boxsource}%
+     \fi\par}%
+    \vskip1.1mm
+    \usebeamerfont{paraphrase}\usebeamercolor[fg]{paraphrase}%
+    \ignorespaces}{%
+    \unskip\par
+  \egroup
+  \acm@drawsourcebox{paraphrase}{\z@}{}}
 
 \setbeamertemplate{section in toc}{%
   \leavevmode\hbox to 1.6em{{\usebeamercolor[fg]{section number in toc}\acmsemibold
